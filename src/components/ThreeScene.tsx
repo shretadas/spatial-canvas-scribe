@@ -7,6 +7,7 @@ import { useProject, Annotation } from '@/context/ProjectContext';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
+import { Minimize, Maximize } from 'lucide-react';
 
 type ModelProps = {
   url: string;
@@ -235,6 +236,7 @@ export function ThreeScene() {
   const [activeTab, setActiveTab] = useState<'preview' | 'editor'>('preview');
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
+  const [isMinimized, setIsMinimized] = useState(false);
   
   // Simulate saving annotations to database
   const handleSaveAnnotations = async () => {
@@ -245,6 +247,10 @@ export function ThreeScene() {
       title: 'Annotations saved',
       description: `Saved ${project.annotations.length} annotations`,
     });
+  };
+
+  const toggleMinimize = () => {
+    setIsMinimized(!isMinimized);
   };
 
   return (
@@ -265,46 +271,61 @@ export function ThreeScene() {
           </Button>
         </div>
         
-        {activeTab === 'editor' && (
-          <Button onClick={handleSaveAnnotations}>
-            Save Annotations
+        <div className="flex space-x-2">
+          {activeTab === 'editor' && (
+            <Button onClick={handleSaveAnnotations}>
+              Save Annotations
+            </Button>
+          )}
+          <Button variant="outline" size="icon" onClick={toggleMinimize} aria-label={isMinimized ? "Maximize" : "Minimize"}>
+            {isMinimized ? <Maximize className="h-4 w-4" /> : <Minimize className="h-4 w-4" />}
           </Button>
+        </div>
+      </div>
+      
+      <div 
+        className={`relative bg-model rounded-lg overflow-hidden transition-all duration-300 ${
+          isMinimized ? 'h-16 flex items-center justify-center' : 'flex-1'
+        }`}
+      >
+        {isMinimized ? (
+          <p className="text-white text-center">3D Viewer (Minimized)</p>
+        ) : (
+          <>
+            {isLoading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-model z-10">
+                <div className="text-white text-center">
+                  <div className="h-8 w-8 rounded-full border-4 border-t-transparent border-white animate-spin mx-auto mb-4"></div>
+                  <p>Loading 3D Model...</p>
+                </div>
+              </div>
+            )}
+            
+            <Canvas
+              camera={{ position: [0, 0, 5], fov: 50 }}
+              style={{ width: '100%', height: '100%' }}
+              onCreated={() => setTimeout(() => setIsLoading(false), 1000)}
+            >
+              <Suspense fallback={null}>
+                <ViewerContent isEditor={activeTab === 'editor'} />
+              </Suspense>
+            </Canvas>
+            
+            {activeTab === 'editor' && (
+              <div className="absolute bottom-4 left-4 right-4 bg-black bg-opacity-70 p-3 rounded-lg text-white text-sm">
+                <p>In Editor mode:</p>
+                <ul className="list-disc list-inside">
+                  <li>Click on the model to add an annotation</li>
+                  <li>Click on an annotation marker to select it</li>
+                  <li>Drag the controls to move the selected annotation</li>
+                </ul>
+              </div>
+            )}
+          </>
         )}
       </div>
       
-      <div className="relative flex-1 bg-model rounded-lg overflow-hidden">
-        {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-model z-10">
-            <div className="text-white text-center">
-              <div className="h-8 w-8 rounded-full border-4 border-t-transparent border-white animate-spin mx-auto mb-4"></div>
-              <p>Loading 3D Model...</p>
-            </div>
-          </div>
-        )}
-        
-        <Canvas
-          camera={{ position: [0, 0, 5], fov: 50 }}
-          style={{ width: '100%', height: '100%' }}
-          onCreated={() => setTimeout(() => setIsLoading(false), 1000)}
-        >
-          <Suspense fallback={null}>
-            <ViewerContent isEditor={activeTab === 'editor'} />
-          </Suspense>
-        </Canvas>
-        
-        {activeTab === 'editor' && (
-          <div className="absolute bottom-4 left-4 right-4 bg-black bg-opacity-70 p-3 rounded-lg text-white text-sm">
-            <p>In Editor mode:</p>
-            <ul className="list-disc list-inside">
-              <li>Click on the model to add an annotation</li>
-              <li>Click on an annotation marker to select it</li>
-              <li>Drag the controls to move the selected annotation</li>
-            </ul>
-          </div>
-        )}
-      </div>
-      
-      {activeTab === 'editor' && project.annotations.length > 0 && (
+      {activeTab === 'editor' && project.annotations.length > 0 && !isMinimized && (
         <div className="mt-4 p-4 bg-card rounded-lg">
           <h3 className="font-medium mb-2">Annotations ({project.annotations.length})</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
